@@ -88,6 +88,78 @@ async function getRandomApprovedPublicPosts(req, res) {
 }
 
 /**
+ * Search for public posts with pagination
+ * 
+ * GET /guest/public-posts/search?page=1&query=keyword
+ * 
+ */
+async function searchPublicPosts(req, res) {
+    try {
+        const page = parseInt(req.query.page) || 1; // Current page, defaulting to 1
+        const perPage = 3; // Number of posts per page
+        const query = req.query.query || ''; // Search query keyword
+
+        // Fetch searched public posts from the database with pagination
+        const posts = await fetchSearchedPublicPosts(query, page, perPage);
+
+        // If no posts are found, return a 404 response
+        if (posts.data.length === 0) {
+            return res.status(404).json({
+                status: 'error',
+                message: 'No matching public posts found',
+            });
+        }
+
+        // Send paginated searched posts as a JSON response
+        res.json({
+            status: 'success',
+            data: {
+                searchedPosts: posts.data,
+                currentPage: page,
+                totalPages: posts.totalPages,
+                itemsPerPage: perPage,
+                totalNumberOfItems: posts.totalItems,
+            },
+        });
+    } catch (error) {
+        // Handle errors and send an appropriate error response
+        handleError(res, error, 'Failed to search public posts');
+    }
+}
+
+/**
+ * Fetch searched public posts from the database with pagination
+ */
+async function fetchSearchedPublicPosts(query, page, itemsPerPage) {
+    const totalPosts = await Post.countDocuments({
+        isApproved: true,
+        isPublic: true,
+        $or: [
+            { description: { $regex: query, $options: 'i' } }, // Case-insensitive search in description
+            { location: { $regex: query, $options: 'i' } },    // Case-insensitive search in location
+        ],
+    });
+    const totalPages = Math.ceil(totalPosts / itemsPerPage);
+
+    const posts = await Post.find({
+        isApproved: true,
+        isPublic: true,
+        $or: [
+            { description: { $regex: query, $options: 'i' } }, // Case-insensitive search in description
+            { location: { $regex: query, $options: 'i' } },    // Case-insensitive search in location
+        ],
+    })
+        .populate({
+            path: 'user',
+            select: 'email photo',
+        })
+        .skip((page - 1) * itemsPerPage)
+        .limit(itemsPerPage);
+
+    return { data: posts, totalItems: totalPosts, totalPages };
+}
+
+/**
  * Fetch approved public posts from the database with pagination
  */
 async function fetchApprovedPublicPosts(page, itemsPerPage) {
@@ -130,4 +202,5 @@ function shuffleArray(array) {
 module.exports = {
     getApprovedPublicPost,
     getRandomApprovedPublicPosts,
+    searchPublicPosts,
 };
