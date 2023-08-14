@@ -47,7 +47,100 @@ async function fetchApprovedPublicPostById(postId) {
 }
 
 /**
- * Get random approved public posts with pagination
+ * Get all approved public posts, sorted by newest with pagination
+ *
+ * GET /guest/public-posts/sorted/newest?page=1
+ */
+async function getNewestPublicPosts(req, res) {
+    try {
+        const page = parseInt(req.query.page) || 1; // Current page, defaulting to 1
+        const perPage = 3; // Number of posts per page
+
+        // Fetch approved public posts sorted by newest from the database with pagination
+        const posts = await fetchApprovedPublicPostsSorted('createdAt', 'desc', page, perPage);
+
+        // If no posts are found, return a 404 response
+        if (posts.data.length === 0) {
+            return res.status(404).json({
+                status: 'error',
+                message: 'No approved public posts found',
+            });
+        }
+
+        res.json({
+            status: 'success',
+            data: {
+                newestPosts: posts.data,
+                currentPage: page,
+                totalPages: posts.totalPages,
+                itemsPerPage: perPage,
+                totalNumberOfItems: posts.totalItems,
+            },
+        });
+    } catch (error) {
+        // Handle errors and send an appropriate error response
+        handleError(res, error, 'Failed to fetch newest public posts');
+    }
+}
+
+/**
+ * Get all approved public posts, sorted by oldest with pagination
+ *
+ * GET /guest/public-posts/sorted/oldest?page=1
+ */
+async function getOldestPublicPosts(req, res) {
+    try {
+        const page = parseInt(req.query.page) || 1; // Current page, defaulting to 1
+        const perPage = 3; // Number of posts per page
+
+        // Fetch approved public posts sorted by oldest from the database with pagination
+        const posts = await fetchApprovedPublicPostsSorted('createdAt', 'asc', page, perPage);
+
+        // If no posts are found, return a 404 response
+        if (posts.data.length === 0) {
+            return res.status(404).json({
+                status: 'error',
+                message: 'No approved public posts found',
+            });
+        }
+
+        res.json({
+            status: 'success',
+            data: {
+                oldestPosts: posts.data,
+                currentPage: page,
+                totalPages: posts.totalPages,
+                itemsPerPage: perPage,
+                totalNumberOfItems: posts.totalItems,
+            },
+        });
+    } catch (error) {
+        // Handle errors and send an appropriate error response
+        handleError(res, error, 'Failed to fetch oldest public posts');
+    }
+}
+
+/**
+ * Fetch approved public posts from the database with pagination and sorting
+ */
+async function fetchApprovedPublicPostsSorted(sortField, sortOrder, page, itemsPerPage) {
+    const totalPosts = await Post.countDocuments({ isApproved: true, isPublic: true });
+    const totalPages = Math.ceil(totalPosts / itemsPerPage);
+
+    const posts = await Post.find({ isApproved: true, isPublic: true })
+        .populate({
+            path: 'user',
+            select: 'email photo',
+        })
+        .sort({ [sortField]: sortOrder })
+        .skip((page - 1) * itemsPerPage)
+        .limit(itemsPerPage);
+
+    return { data: posts, totalItems: totalPosts, totalPages };
+}
+
+/**
+ * Get all public posts in random order with pagination
  *
  * GET /guest/public-posts/random?page=1
  */
@@ -201,6 +294,8 @@ function shuffleArray(array) {
 
 module.exports = {
     getApprovedPublicPost,
+    getNewestPublicPosts,
+    getOldestPublicPosts,
     getRandomApprovedPublicPosts,
     searchPublicPosts,
 };
