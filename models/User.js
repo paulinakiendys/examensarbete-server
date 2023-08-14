@@ -27,6 +27,9 @@ const userSchema = new mongoose.Schema(
     { timestamps: true, toJSON: { virtuals: true } },
 );
 
+// Number of salt rounds for password hashing
+userSchema.statics.saltRounds = 10;
+
 userSchema.virtual('posts', {
     ref: 'Post',
     localField: '_id',
