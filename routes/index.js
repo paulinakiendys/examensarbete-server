@@ -10,6 +10,9 @@ router.get('/', (req, res, next) => {
 /* Guest route */
 router.use('/guest', require('./guest'));
 
+/* Login a user and get a JWT token */
+router.post('/login', authController.login);
+
 /* Register a new user */
 router.post('/signup', authController.signup);
 

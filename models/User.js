@@ -2,6 +2,7 @@
  * User Model
  */
 const mongoose = require('mongoose');
+const bcrypt = require('bcrypt');
 
 // Declare Model Schema
 const userSchema = new mongoose.Schema(
@@ -26,6 +27,27 @@ const userSchema = new mongoose.Schema(
     },
     { timestamps: true, toJSON: { virtuals: true } },
 );
+
+// Validate user credentials
+userSchema.statics.login = async function (email, password) {
+    // Check if the email exists in database
+    const user = await this.findOne({ email });
+    if (!user) {
+        return false;
+    }
+
+    const hash = user.password;
+
+    // Hash the incoming cleartext password using bcrypt
+    // Check if password matches stored hashed password
+    const result = await bcrypt.compare(password, hash);
+    if (!result) {
+        return false;
+    }
+
+    // Return user
+    return user;
+};
 
 // Number of salt rounds for password hashing
 userSchema.statics.saltRounds = 10;
