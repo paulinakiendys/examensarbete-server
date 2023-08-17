@@ -1,11 +1,7 @@
 const express = require('express');
 const router = express.Router();
+const auth = require('../middlewares/auth');
 const authController = require('../controllers/auth_controller');
-
-/* GET home page. */
-router.get('/', (req, res, next) => {
-  res.send('Hello World!');
-});
 
 /* Send a password rest link */
 router.post('/forgot-password', authController.forgotPassword);
@@ -21,5 +17,8 @@ router.post('/reset-password/:resetToken', authController.resetPassword);
 
 /* Register a new user */
 router.post('/signup', authController.signup);
+
+/* Protected user route */
+router.use('/user', auth.validateJwtToken, require('./user'));
 
 module.exports = router;
