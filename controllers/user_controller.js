@@ -3,7 +3,7 @@
  */
 
 const debug = require('debug')('server:user_controller');
-const { User, Post } = require('../models');
+const { Post } = require('../models');
 
 /**
  * Add a post for the authenticated user
@@ -72,6 +72,112 @@ const addPost = async (req, res) => {
     }
 };
 
+/**
+ * Get a specific user post
+ *
+ * GET /user/posts/:postId
+ */
+const getUserPost = async (req, res) => {
+    try {
+        const postId = req.params.postId;
+
+        // Find the post by ID and user ID
+        const post = await Post.findOne({ _id: postId, user: req.user.id });
+
+        // If no post is found, return a 404 response
+        if (!post) {
+            return res.status(404).json({
+                status: 'error',
+                message: 'Post not found',
+            });
+        }
+
+        // Send the post as response
+        res.status(200).json({
+            status: 'success',
+            data: post,
+        });
+    } catch (error) {
+        debug('Error getting user post:', error.message);
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to get user post',
+        });
+    }
+};
+
+/**
+ * Search for user posts with pagination
+ *
+ * GET /user/posts/search?page=1&query=keyword
+ */
+const searchPosts = async (req, res) => {
+
+    try {
+        const page = parseInt(req.query.page) || 1; // Current page, defaulting to 1
+        const perPage = 3; // Number of posts per page
+        const query = req.query.query || ''; // Search query keyword
+
+        // Fetch user's posts that match the search query from the database with pagination
+        const posts = await fetchSearchedUserPosts(req.user.id, query, page, perPage);
+
+        // If no posts are found, return a 404 response
+        if (posts.data.length === 0) {
+            return res.status(404).json({
+                status: 'error',
+                message: 'No matching user posts found',
+            });
+        }
+
+        // Send paginated searched posts as response
+        res.status(200).json({
+            status: 'success',
+            data: {
+                searchedPosts: posts.data,
+                currentPage: page,
+                totalPages: posts.totalPages,
+                itemsPerPage: perPage,
+                totalNumberOfItems: posts.totalItems,
+            },
+        });
+    } catch (error) {
+        debug('Error searching user posts:', error.message);
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to search user posts',
+        });
+    }
+};
+
+/**
+ * Fetch user posts that match the search query from the database with pagination
+ */
+async function fetchSearchedUserPosts(userId, query, page, itemsPerPage) {
+    const totalPosts = await Post.countDocuments({
+        user: userId,
+        $or: [
+            { description: { $regex: query, $options: 'i' } }, // Case-insensitive search in description
+            { location: { $regex: query, $options: 'i' } },    // Case-insensitive search in location
+        ],
+    });
+    const totalPages = Math.ceil(totalPosts / itemsPerPage);
+
+    const posts = await Post.find({
+        user: userId,
+        $or: [
+            { description: { $regex: query, $options: 'i' } }, // Case-insensitive search in description
+            { location: { $regex: query, $options: 'i' } },    // Case-insensitive search in location
+        ],
+    })
+        .sort({ createdAt: 'desc' })
+        .skip((page - 1) * itemsPerPage)
+        .limit(itemsPerPage);
+
+    return { data: posts, totalItems: totalPosts, totalPages };
+}
+
 module.exports = {
-    addPost
+    addPost,
+    getUserPost,
+    searchPosts
 }
