@@ -2,15 +2,16 @@
  * User Controller
  */
 
+const bcrypt = require('bcrypt');
 const debug = require('debug')('server:user_controller');
-const { Post } = require('../models');
+const { User, Post } = require('../models');
 
 /**
  * Add a post for the authenticated user
  *
  * POST /posts
  * {
- *   "photo": "",
+ *   "photo": <file upload>,
  *   "description": "",
  *   "location": "",
  *   "mood": 1-10,
@@ -81,8 +82,9 @@ const getUserPost = async (req, res) => {
     try {
         const postId = req.params.postId;
 
-        // Find the post by ID and user ID
-        const post = await Post.findOne({ _id: postId, user: req.user.id });
+        // Find the post by ID and user ID, and populate the 'user' field
+        const post = await Post.findOne({ _id: postId, user: req.user.id })
+            .populate('user', 'email photo');
 
         // If no post is found, return a 404 response
         if (!post) {
@@ -102,6 +104,38 @@ const getUserPost = async (req, res) => {
         res.status(500).json({
             status: 'error',
             message: 'Failed to get user post',
+        });
+    }
+};
+
+/**
+ * Get authenticated user's profile
+ *
+ * GET /profile
+ */
+const getUserProfile = async (req, res) => {
+    try {
+        // Retrieve the authenticated user from the database
+        const user = await User.findOne({ _id: req.user.id });
+
+        // If no user is found, you can return an appropriate response
+        if (!user) {
+            return res.status(404).json({
+                status: 'error',
+                message: 'User not found',
+            });
+        }
+
+        // Send the user as a response
+        res.status(200).json({
+            status: 'success',
+            data: user,
+        });
+    } catch (error) {
+        debug('Error getting user:', error.message);
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to get user',
         });
     }
 };
@@ -176,8 +210,73 @@ async function fetchSearchedUserPosts(userId, query, page, itemsPerPage) {
     return { data: posts, totalItems: totalPosts, totalPages };
 }
 
+/**
+ * Update authenticated user's profile
+ *
+ * PUT /profile
+ * {
+ *   "email": "",
+ *   "newPassword": "",
+ *   "photo": <file upload>
+ * }
+ */
+const updateUserProfile = async (req, res) => {
+    try {
+        const { email, password } = req.body;
+
+        // Retrieve the authenticated user from the database
+        const user = await User.findOne({ _id: req.user.id });
+
+        // If no user is found, return an appropriate response
+        if (!user) {
+            return res.status(404).json({
+                status: 'error',
+                message: 'User not found',
+            });
+        }
+
+        // Update user email if an email is provided
+        if (email) {
+            user.email = email;
+        }
+
+        // Update user password if a new password is provided
+        if (password) {
+            const hashedPassword = await bcrypt.hash(password, User.saltRounds);
+            user.password = hashedPassword;
+        }
+
+        // Handle profile photo upload if a file is provided
+        if (req.file) {
+            const url = `${req.protocol}://${req.get('host')}`;
+            user.photo = `${url}/photos/${req.file.filename}`;
+        }
+
+        // Save the updated user profile
+        await user.save();
+
+        // Send the updated user profile as a response
+        debug('User profile updated successfully: %O', user);
+        res.status(200).json({
+            status: 'success',
+            data: {
+                message: 'User profile updated successfully',
+                user,
+            },
+        });
+    } catch (error) {
+        debug('Error updating user profile:', error.message);
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to update user profile',
+        });
+    }
+};
+
 module.exports = {
     addPost,
     getUserPost,
-    searchPosts
+    getUserProfile,
+    searchPosts,
+    updateUserProfile,
 }

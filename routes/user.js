@@ -12,4 +12,10 @@ router.get('/posts/search', userController.searchPosts);
 /* Get a specific user post */
 router.get('/posts/:postId', userController.getUserPost);
 
+/* Get authenticated user's profile */
+router.get('/profile', userController.getUserProfile);
+
+/* Update authenticated user's profile */
+router.put('/profile', multer.uploadSingleImage, userController.updateUserProfile);
+
 module.exports = router;
