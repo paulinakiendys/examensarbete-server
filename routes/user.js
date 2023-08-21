@@ -6,6 +6,8 @@ const multer = require('../middlewares/multer');
 /* Add a post to the authenticated user */
 router.post('/posts', multer.uploadSingleImage, userController.addPost);
 
+router.get('/posts/:month/:day', userController.getUserPostsByDayMonth);
+
 /* Search for user posts */
 router.get('/posts/search', userController.searchPosts);
 

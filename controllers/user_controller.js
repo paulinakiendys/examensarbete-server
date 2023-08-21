@@ -109,6 +109,55 @@ const getUserPost = async (req, res) => {
 };
 
 /**
+ * Get user's posts by day and month across different years
+ *
+ * GET /user/posts/:month/:day
+ */
+const getUserPostsByDayMonth = async (req, res) => {
+    try {
+        const day = parseInt(req.params.day);
+        const month = parseInt(req.params.month);
+
+        // Fetch user's posts that match the day and month from the database
+        const posts = await fetchUserPostsByDayMonth(req.user.id, day, month);
+
+        // If no posts are found, return a 404 response
+        if (posts.length === 0) {
+            return res.status(404).json({
+                status: 'error',
+                message: 'No matching user posts found',
+            });
+        }
+
+        // Send the matching posts as response
+        res.status(200).json({
+            status: 'success',
+            data: posts,
+        });
+    } catch (error) {
+        debug('Error fetching user posts by day and month:', error.message);
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to fetch user posts',
+        });
+    }
+};
+
+async function fetchUserPostsByDayMonth(userId, day, month) {
+    const matchingPosts = await Post.find({
+        user: userId,
+        $expr: {
+            $and: [
+                { $eq: [{ $dayOfMonth: '$createdAt' }, day] },
+                { $eq: [{ $month: '$createdAt' }, month] },
+            ],
+        },
+    }).sort({ createdAt: 'desc' });
+
+    return matchingPosts;
+}
+
+/**
  * Get authenticated user's profile
  *
  * GET /profile
@@ -276,6 +325,7 @@ const updateUserProfile = async (req, res) => {
 module.exports = {
     addPost,
     getUserPost,
+    getUserPostsByDayMonth,
     getUserProfile,
     searchPosts,
     updateUserProfile,
