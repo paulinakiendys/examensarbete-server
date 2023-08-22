@@ -64,11 +64,47 @@ const addPost = async (req, res) => {
             message: 'Post added successfully. Public posts will be visible after admin approval.',
         });
     } catch (error) {
-        console.log(error)
         debug('Error adding post:', error.message);
         res.status(500).json({
             status: 'error',
             message: 'Make sure all fields are filled out correctly.',
+        });
+    }
+};
+
+/**
+ * Delete a specific user post
+ *
+ * DELETE /user/posts/:postId
+ */
+const deleteUserPost = async (req, res) => {
+    try {
+        const postId = req.params.postId;
+
+        // Find the post by ID and user ID
+        const post = await Post.findOne({ _id: postId, user: req.user.id });
+
+        // If no post is found, return a 404 response
+        if (!post) {
+            return res.status(404).json({
+                status: 'error',
+                message: 'Post not found',
+            });
+        }
+
+        // Delete the post
+        await post.deleteOne();
+
+        // Send a success response
+        res.status(200).json({
+            status: 'success',
+            message: 'Post deleted successfully',
+        });
+    } catch (error) {
+        debug('Error deleting user post:', error.message);
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to delete user post',
         });
     }
 };
@@ -260,6 +296,69 @@ async function fetchSearchedUserPosts(userId, query, page, itemsPerPage) {
 }
 
 /**
+ * Update a specific user post
+ *
+ * PUT /user/posts/:postId
+ * {
+ *   "photo": <file upload>,
+ *   "description": "",
+ *   "location": "",
+ *   "mood": 1-10,
+ *   "temperature": 23,
+ *   "isPublic": true/false
+ * }
+ */
+const updateUserPost = async (req, res) => {
+    try {
+        const postId = req.params.postId;
+        const { description, location, mood, temperature, isPublic } = req.body;
+
+        // Find the post by ID and user ID
+        const post = await Post.findOne({ _id: postId, user: req.user.id });
+
+        // If no post is found, return a 404 response
+        if (!post) {
+            return res.status(404).json({
+                status: 'error',
+                message: 'Post not found',
+            });
+        }
+
+        // Update post fields
+        post.description = description;
+        post.location = location;
+        post.mood = mood;
+        post.temperature = temperature;
+        post.isPublic = isPublic;
+
+        // Check if the user uploaded a new file
+        if (req.file) {
+            const url = `${req.protocol}://${req.get('host')}`;
+            post.photo = `${url}/photos/${req.file.filename}`;
+        }
+
+        // Save the updated post
+        await post.save();
+
+        // Send the updated post as response
+        debug('User post updated successfully: %O', post);
+        res.status(200).json({
+            status: 'success',
+            data: {
+                message: "User post updated successfully",
+                post
+            },
+        });
+    } catch (error) {
+        debug('Error updating user post:', error.message);
+        res.status(500).json({
+            status: 'error',
+            message: 'Make sure all fields are filled out correctly.',
+        });
+    }
+};
+
+/**
  * Update authenticated user's profile
  *
  * PUT /profile
@@ -324,9 +423,11 @@ const updateUserProfile = async (req, res) => {
 
 module.exports = {
     addPost,
+    deleteUserPost,
     getUserPost,
     getUserPostsByDayMonth,
     getUserProfile,
     searchPosts,
+    updateUserPost,
     updateUserProfile,
 }
