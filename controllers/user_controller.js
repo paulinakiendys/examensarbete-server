@@ -194,6 +194,77 @@ async function fetchUserPostsByDayMonth(userId, day, month) {
 }
 
 /**
+ * Get user's posts within a specified range of years with pagination
+ *
+ * GET /user/posts/range/:startYear/:endYear?page=1
+ */
+const getUserPostsInRange = async (req, res) => {
+    try {
+        const startYear = parseInt(req.params.startYear);
+        const endYear = parseInt(req.params.endYear);
+        const page = parseInt(req.query.page) || 1; // Current page, defaulting to 1
+        const itemsPerPage = 3; // Number of posts per page
+
+        // Fetch paginated user's posts that match the year range from the database
+        const posts = await fetchUserPostsInRange(req.user.id, startYear, endYear, page, itemsPerPage);
+
+        // If no posts are found, return a 404 response
+        if (posts.data.length === 0) {
+            return res.status(404).json({
+                status: 'error',
+                message: 'No matching user posts found within the specified range of years',
+            });
+        }
+
+        // Send paginated posts as response
+        res.status(200).json({
+            status: 'success',
+            data: {
+                posts: posts.data,
+                currentPage: page,
+                totalPages: posts.totalPages,
+                itemsPerPage: itemsPerPage,
+                totalNumberOfItems: posts.totalItems,
+            },
+        });
+    } catch (error) {
+        debug('Error fetching paginated user posts within range of years:', error.message);
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to fetch paginated user posts within range of years',
+        });
+    }
+};
+
+async function fetchUserPostsInRange(userId, startYear, endYear, page, itemsPerPage) {
+    const totalPosts = await Post.countDocuments({
+        user: userId,
+        $expr: {
+            $and: [
+                { $gte: [{ $year: '$createdAt' }, startYear] },
+                { $lte: [{ $year: '$createdAt' }, endYear] },
+            ],
+        },
+    });
+    const totalPages = Math.ceil(totalPosts / itemsPerPage);
+
+    const posts = await Post.find({
+        user: userId,
+        $expr: {
+            $and: [
+                { $gte: [{ $year: '$createdAt' }, startYear] },
+                { $lte: [{ $year: '$createdAt' }, endYear] },
+            ],
+        },
+    })
+        .sort({ createdAt: 'desc' })
+        .skip((page - 1) * itemsPerPage)
+        .limit(itemsPerPage);
+
+    return { data: posts, totalItems: totalPosts, totalPages };
+}
+
+/**
  * Get authenticated user's profile
  *
  * GET /profile
@@ -426,6 +497,7 @@ module.exports = {
     deleteUserPost,
     getUserPost,
     getUserPostsByDayMonth,
+    getUserPostsInRange,
     getUserProfile,
     searchPosts,
     updateUserPost,

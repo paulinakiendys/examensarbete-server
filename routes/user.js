@@ -8,6 +8,9 @@ router.post('/posts', multer.uploadSingleImage, userController.addPost);
 
 router.get('/posts/:month/:day', userController.getUserPostsByDayMonth);
 
+// Get authenticated user's posts within a specified range of years
+router.get('/posts/range/:startYear/:endYear', userController.getUserPostsInRange);
+
 /* Search for user posts */
 router.get('/posts/search', userController.searchPosts);
 
