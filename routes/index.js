@@ -21,4 +21,7 @@ router.post('/signup', authController.signup);
 /* Protected user route */
 router.use('/user', auth.validateJwtToken, require('./user'));
 
+/* Protected admin route */
+router.use('/admin', auth.validateJwtToken, auth.adminRoleCheck, require('./admin'));
+
 module.exports = router;

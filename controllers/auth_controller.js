@@ -57,7 +57,7 @@ const forgotPassword = async (req, res) => {
 		// Send the email
 		await sgMail.send(msg);
 		debug(`Successfully sent password reset link to: ${user.email}`);
-		
+
 		return res.send({
 			status: 'success',
 			message: `You'll receive a link to reset your password. If you don't see the email, check your spam or junk folder before submitting a new request.`,
@@ -98,6 +98,7 @@ const login = async (req, res) => {
 	const payload = {
 		id: user.get('_id').toString(),
 		email: user.get('email'),
+		isAdmin: user.get('isAdmin')
 	}
 
 	// Sign payload and get access token
@@ -200,6 +201,7 @@ const signup = async (req, res) => {
 		const payload = {
 			id: user.get('_id').toString(),
 			email: user.get('email'),
+			isAdmin: user.get('isAdmin')
 		}
 
 		// Sign payload and get access token

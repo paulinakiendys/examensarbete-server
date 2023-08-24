@@ -44,6 +44,20 @@ const validateJwtToken = (req, res, next) => {
 	next();
 }
 
+/**
+ * Admin role check
+ */
+const adminRoleCheck = (req, res, next) => {
+	if (!req.user.isAdmin) {
+        return res.status(403).send({
+            status: 'fail',
+            message: 'Access denied. Only admin users are allowed.',
+        });
+    }
+    next();
+}
+
 module.exports = {
 	validateJwtToken,
+	adminRoleCheck,
 }
